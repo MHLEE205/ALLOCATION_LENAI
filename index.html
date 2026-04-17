@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEENAI B-01 Allocation v0.1</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--sf3:#2a2f46;--bd:#2e3350;--ac:#4f8ef7;--ok:#22c55e;--wn:#f59e0b;--dg:#ef4444;--tx:#e2e8f0;--tx2:#8892a4;--tx3:#4a5568;--r:10px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI','Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);font-size:13px;}
+.hd{background:var(--sf);border-bottom:1px solid var(--bd);padding:0 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:200;height:46px;}
+.logo{font-size:17px;font-weight:800;letter-spacing:1px;}.logo span{color:var(--ac);}
+.hd-ver{margin-left:auto;font-size:11px;color:var(--tx3);background:var(--sf2);padding:2px 9px;border-radius:12px;}
+.hd-user{font-size:12px;background:rgba(79,142,247,.15);color:var(--ac);padding:3px 10px;border-radius:12px;display:none;}
+.main{max-width:1400px;margin:0 auto;padding:14px 16px;}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;}
+.btn{padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;}
+.btn-ac{background:var(--ac);color:#fff;}
+.login-card{text-align:center;padding:40px;}
+.login-card h2{margin-bottom:8px;font-size:16px;}
+.login-card p{color:var(--tx2);margin-bottom:16px;font-size:12px;}
+#log{font-size:11px;color:var(--tx2);max-height:150px;overflow-y:auto;padding:8px;background:var(--sf2);border-radius:6px;margin-top:8px;display:none;}
+.log-ok{color:var(--ok);}.log-err{color:var(--dg);}.log-info{color:var(--ac);}
+.sum-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.sc{background:var(--sf2);border-radius:8px;padding:8px 12px;min-width:90px;text-align:center;}
+.sc .lb{font-size:10px;color:var(--tx2);}.sc .vl{font-size:18px;font-weight:700;}
+.sc .vl.plus{color:var(--ok);}.sc .vl.minus{color:var(--dg);}
+.itabs{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:10px;}
+.itab{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:transparent;color:var(--tx2);}
+.itab:hover{border-color:var(--ac);color:var(--tx);}.itab.on{background:var(--ac);color:#fff;border-color:var(--ac);}
+table.dt{width:100%;border-collapse:collapse;font-size:11px;}
+table.dt th{background:var(--sf2);color:var(--tx2);font-weight:600;font-size:10px;padding:4px 6px;text-align:left;border-bottom:1px solid var(--bd);}
+table.dt td{padding:4px 6px;border-bottom:1px solid var(--bd);}
+table.dt tr:hover{background:var(--sf2);}
+.r{text-align:right;}.gh{background:var(--sf3);font-weight:700;color:var(--ac);}
+.neg{color:var(--dg);}.pos{color:var(--ok);}
+.sp{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.al{padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:8px;background:rgba(79,142,247,.1);color:var(--ac);border:1px solid rgba(79,142,247,.3);}
+.hid{display:none!important;}
+.ld::after{content:'';display:inline-block;width:14px;height:14px;border:2px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:sp .6s linear infinite;margin-left:6px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="hd"><div class="logo"><span>LEENAI</span></div><span style="font-size:13px;font-weight:600">B-01 Allocation</span><div class="hd-ver">v0.1</div><div class="hd-user" id="hU"></div></div>
+<div class="main">
+<div class="card login-card" id="lC"><h2>COMPASS Dataverse ログイン</h2><p>Azure AD認証でCOMPASS契約データに直接アクセス</p><button class="btn btn-ac" onclick="startLogin()">ログイン</button><div id="log"></div></div>
+<div id="dA" class="hid"><div id="aA"></div><div class="sum-row" id="sR"></div><div class="itabs" id="iT"></div><div class="sp"><div class="card"><div style="font-weight:700;font-size:12px;color:var(--tx2);margin-bottom:8px">購買残 (Buy)</div><div id="bT"></div></div><div class="card"><div style="font-weight:700;font-size:12px;color:var(--tx2);margin-bottom:8px">販売残 (Sales)</div><div id="sT"></div></div></div><div class="card" style="margin-top:10px"><div style="font-weight:700;font-size:12px;color:var(--tx2);margin-bottom:8px">データ確認</div><div id="dB" style="font-size:11px;color:var(--tx2);max-height:200px;overflow:auto"></div></div></div>
+</div>
+<script>
+const CID='f071a165-5e9b-44bf-b6a1-baba654524db',TID='a56988ff-c2b8-4df8-9727-889ad4205198';
+const RU='https://mhlee205.github.io/B01_TOOL/';
+const DV='https://orgde512c6f.crm7.dynamics.com',DA=DV+'/api/data/v9.2';
+const SC=DV+'/user_impersonation openid profile';
+let AT=null;
+
+function b6(b){return btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');}
+async function sh(s){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));}
+function rn(n=64){const a=new Uint8Array(n);crypto.getRandomValues(a);return b6(a).slice(0,n);}
+
+async function startLogin(){
+  lg('ログイン開始...','info');
+  const v=rn(64),ch=b6(await sh(v)),st=rn(16);
+  sessionStorage.setItem('pkce_v',v);sessionStorage.setItem('pkce_s',st);
+  location.href=`https://login.microsoftonline.com/${TID}/oauth2/v2.0/authorize?`+new URLSearchParams({client_id:CID,response_type:'code',redirect_uri:RU,scope:SC,state:st,code_challenge:ch,code_challenge_method:'S256',prompt:'select_account'});
+}
+
+async function hCb(){
+  const p=new URLSearchParams(location.search),code=p.get('code');
+  if(!code)return false;
+  if(p.get('state')!==sessionStorage.getItem('pkce_s')){alert('State mismatch');return false;}
+  lg('トークン取得中...','info');
+  try{
+    const r=await fetch(`https://login.microsoftonline.com/${TID}/oauth2/v2.0/token`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:CID,grant_type:'authorization_code',code,redirect_uri:RU,code_verifier:sessionStorage.getItem('pkce_v'),scope:SC})});
+    const d=await r.json();if(!d.access_token)throw new Error(d.error_description||'fail');
+    AT=d.access_token;history.replaceState({},'',RU);
+    sessionStorage.removeItem('pkce_v');sessionStorage.removeItem('pkce_s');
+    try{const pl=JSON.parse(atob(AT.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));$('hU').textContent=pl.name||'';$('hU').style.display='block';}catch(e){}
+    lg('ログイン成功','ok');return true;
+  }catch(e){lg(e.message,'err');return false;}
+}
+
+async function dg(p){
+  const r=await fetch(`${DA}/${p}`,{headers:{'Authorization':'Bearer '+AT,'OData-MaxVersion':'4.0','OData-Version':'4.0','Accept':'application/json','Prefer':'odata.include-annotations="OData.Community.Display.V1.FormattedValue",odata.maxpagesize=5000'}});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(`${r.status}: ${e?.error?.message||r.statusText}`);}
+  return r.json();
+}
+async function dgA(p){let a=[],u=p;while(u){const d=await dg(u);a=a.concat(d.value||[]);u=d['@odata.nextLink']?d['@odata.nextLink'].replace(DA+'/',''):null;}return a;}
+
+let IT={},BD=[],SD=[],BK=[],PM={},SM={},PK={},BY={},PD={};
+
+async function load(){
+  sa('データ取得中...',true);
+  try{
+    lg('品目マスター...','info');
+    (await dgA("cr49f_items?$select=cr49f_itemid,cr49f_item")).forEach(i=>IT[i.cr49f_itemid]=i.cr49f_item);
+    lg(`品目: ${Object.keys(IT).length}件`,'ok');
+
+    lg('購買残...','info');
+    BD=await dgA("cr49f_purchase_details?$filter=cr49f_closing eq false&$select=cr49f_purchase_detailid,cr49f_quantity,cr49f_price,cr49f_loading_port,cr49f_incoterms,cr49f_count,_cr49f_item_id_value,_cr49f_purchase_contract_id_value");
+    lg(`購買残: ${BD.length}件`,'ok');
+
+    lg('販売残...','info');
+    SD=await dgA("cr49f_sale_details?$filter=cr49f_closing eq false&$select=cr49f_sale_detailid,cr49f_quantity,cr49f_price,cr49f_price_yen,_cr49f_item_id_value,_cr49f_sale_contract_id_value");
+    lg(`販売残: ${SD.length}件`,'ok');
+
+    lg('BKG詳細(割当計算)...','info');
+    BK=await dgA("cr49f_booking_details?$select=cr49f_net,_cr49f_purchase_contract_detail_id_value,_cr49f_sale_contract_detail_id_value");
+    lg(`BKG詳細: ${BK.length}件`,'ok');
+
+    lg('Packer解決...','info');
+    const pcG=[...new Set(BD.map(b=>b._cr49f_purchase_contract_id_value).filter(Boolean))];
+    (await Promise.all(pcG.map(g=>dg(`cr49f_purchase_contracts(${g})?$select=_cr49f_packer_id_value,cr49f_exchange_rate,cr49f_purchase_contract_no`).catch(()=>null)))).forEach((r,i)=>{if(r)PM[pcG[i]]={pk:r._cr49f_packer_id_value,rt:r.cr49f_exchange_rate,no:r.cr49f_purchase_contract_no};});
+    const pkG=[...new Set(Object.values(PM).map(p=>p.pk).filter(Boolean))];
+    (await Promise.all(pkG.map(g=>dg(`cr49f_packers(${g})?$select=cr49f_packer`).catch(()=>null)))).forEach((r,i)=>{if(r)PK[pkG[i]]=r.cr49f_packer;});
+    lg(`Packer: ${Object.keys(PK).length}社`,'ok');
+
+    lg('Buyer・POD...','info');
+    const scG=[...new Set(SD.map(s=>s._cr49f_sale_contract_id_value).filter(Boolean))];
+    (await Promise.all(scG.map(g=>dg(`cr49f_sale_contracts(${g})?$select=cr49f_sale_contract_no,cr49f_latest_shipment,_cr49f_buyer_id_value,_cr49f_pod1_value`).catch(()=>null)))).forEach((r,i)=>{if(r)SM[scG[i]]={by:r._cr49f_buyer_id_value,pod:r._cr49f_pod1_value,ls:r.cr49f_latest_shipment,no:r.cr49f_sale_contract_no};});
+    const byG=[...new Set(Object.values(SM).map(s=>s.by).filter(Boolean))];
+    (await Promise.all(byG.map(g=>dg(`cr49f_buyers(${g})?$select=cr49f_buyer,crcf9_country`).catch(()=>null)))).forEach((r,i)=>{if(r)BY[byG[i]]={n:r.cr49f_buyer,c:r.crcf9_country};});
+    const pdG=[...new Set(Object.values(SM).map(s=>s.pod).filter(Boolean))];
+    (await Promise.all(pdG.map(g=>dg(`cr49f_regions(${g})?$select=cr49f_pod,cr49f_region`).catch(()=>null)))).forEach((r,i)=>{if(r)PD[pdG[i]]={p:r.cr49f_pod,r:r.cr49f_region};});
+    lg(`Buyer: ${Object.keys(BY).length}, POD: ${Object.keys(PD).length}`,'ok');
+
+    const aP={},aS={};
+    BK.forEach(b=>{const p=b._cr49f_purchase_contract_detail_id_value,s=b._cr49f_sale_contract_detail_id_value,n=b.cr49f_net||0;if(p)aP[p]=(aP[p]||0)+n;if(s)aS[s]=(aS[s]||0)+n;});
+
+    BD.forEach(b=>{b._it=IT[b._cr49f_item_id_value]||'?';const pc=PM[b._cr49f_purchase_contract_id_value]||{};b._pk=PK[pc.pk]||'?';b._rt=pc.rt||155;b._co=pc.no||'';b._al=aP[b.cr49f_purchase_detailid]||0;b._rm=Math.round(((b.cr49f_quantity||0)-b._al)*100)/100;});
+    SD.forEach(s=>{s._it=IT[s._cr49f_item_id_value]||'?';const sc=SM[s._cr49f_sale_contract_id_value]||{};const by=BY[sc.by]||{},pd=PD[sc.pod]||{};s._by=by.n||'?';s._ct=by.c||'?';s._pd=pd.p||'?';s._rg=pd.r||'?';s._ls=sc.ls;s._co=sc.no||'';s._al=aS[s.cr49f_sale_detailid]||0;s._rm=Math.round(((s.cr49f_quantity||0)-s._al)*100)/100;});
+
+    sa('',false);lg('全データ取得完了','ok');render();
+  }catch(e){sa(e.message,false);lg('ERROR: '+e.message,'err');}
+}
+
+let SI='ALL';
+function render(){
+  $('dA').classList.remove('hid');
+  const is=new Set();BD.forEach(b=>is.add(b._it));SD.forEach(s=>is.add(s._it));
+  const ai=[...is].sort(),sm={};ai.forEach(i=>sm[i]={s:0,b:0});
+  BD.forEach(b=>{if(sm[b._it])sm[b._it].b+=b._rm;});SD.forEach(s=>{if(sm[s._it])sm[s._it].s+=s._rm;});
+  const tS=Object.values(sm).reduce((a,x)=>a+x.s,0),tB=Object.values(sm).reduce((a,x)=>a+x.b,0),df=tB-tS;
+  $('sR').innerHTML=`<div class="sc"><div class="lb">販売残</div><div class="vl">${Math.round(tS).toLocaleString()}</div></div><div class="sc"><div class="lb">購買残</div><div class="vl">${Math.round(tB).toLocaleString()}</div></div><div class="sc"><div class="lb">過不足</div><div class="vl ${df>=0?'plus':'minus'}">${df>=0?'+':''}${Math.round(df).toLocaleString()}</div></div>`;
+  let th=`<div class="itab ${SI==='ALL'?'on':''}" onclick="sel('ALL')">ALL</div>`;
+  ai.sort((a,b)=>(sm[b].s+sm[b].b)-(sm[a].s+sm[a].b)).forEach(i=>{const d=Math.round(sm[i].b-sm[i].s);th+=`<div class="itab ${SI===i?'on':''}" onclick="sel('${i}')">${i}<span style="color:${d>=0?'var(--ok)':'var(--dg)'};font-size:9px;margin-left:2px">${d>=0?'+':''}${d}</span></div>`;});
+  $('iT').innerHTML=th;rT();
+}
+
+function sel(i){SI=i;render();}
+
+function rT(){
+  const bf=SI==='ALL'?BD:BD.filter(b=>b._it===SI),sf=SI==='ALL'?SD:SD.filter(s=>s._it===SI);
+  let bh='<table class="dt"><thead><tr><th>Item</th><th>Packer</th><th>契約番号</th><th>POL</th><th>渡し</th><th class="r">¥/kg</th><th class="r">契約</th><th class="r">割当済</th><th class="r">残</th></tr></thead><tbody>';
+  const bi={};bf.forEach(b=>{(bi[b._it]=bi[b._it]||[]).push(b);});
+  Object.keys(bi).sort().forEach(it=>{const rs=bi[it],sq=rs.reduce((a,r)=>a+(r.cr49f_quantity||0),0),sa2=rs.reduce((a,r)=>a+r._al,0),sr=rs.reduce((a,r)=>a+r._rm,0);
+    if(SI==='ALL')bh+=`<tr class="gh"><td colspan="6">${it}</td><td class="r">${Math.round(sq)}</td><td class="r">${Math.round(sa2)}</td><td class="r ${sr<0?'neg':'pos'}">${Math.round(sr)}</td></tr>`;
+    rs.sort((a,b)=>b._rm-a._rm).forEach(r=>{if(Math.abs(r._rm)<0.5)return;bh+=`<tr><td>${SI==='ALL'?'':r._it}</td><td><b>${r._pk}</b></td><td style="font-size:10px;color:var(--tx2)">${r._co}</td><td>${r.cr49f_loading_port||'-'}</td><td style="font-size:10px">${r.cr49f_incoterms||'-'}</td><td class="r">${r.cr49f_price||'-'}</td><td class="r">${Math.round(r.cr49f_quantity||0)}</td><td class="r" style="color:var(--tx2)">${Math.round(r._al)}</td><td class="r ${r._rm<0?'neg':'pos'}"><b>${Math.round(r._rm)}</b></td></tr>`;});});
+  bh+='</tbody></table>';$('bT').innerHTML=bh;
+
+  let sh2='<table class="dt"><thead><tr><th>Item</th><th>Buyer</th><th>契約番号</th><th>POD</th><th>国</th><th class="r">$/MT</th><th class="r">契約</th><th class="r">割当済</th><th class="r">残</th><th>L.Ship</th></tr></thead><tbody>';
+  const si2={};sf.forEach(s=>{(si2[s._it]=si2[s._it]||[]).push(s);});
+  Object.keys(si2).sort().forEach(it=>{const rs=si2[it],sq=rs.reduce((a,r)=>a+(r.cr49f_quantity||0),0),sa2=rs.reduce((a,r)=>a+r._al,0),sr=rs.reduce((a,r)=>a+r._rm,0);
+    if(SI==='ALL')sh2+=`<tr class="gh"><td colspan="6">${it}</td><td class="r">${Math.round(sq)}</td><td class="r">${Math.round(sa2)}</td><td class="r ${sr<0?'neg':'pos'}">${Math.round(sr)}</td><td></td></tr>`;
+    rs.sort((a,b)=>{const la=a._ls?new Date(a._ls):new Date('2099-01-01'),lb=b._ls?new Date(b._ls):new Date('2099-01-01');return la-lb;}).forEach(r=>{if(Math.abs(r._rm)<0.5)return;const ls=r._ls?new Date(r._ls):null,ug=ls&&(ls-new Date()<14*86400000);
+      sh2+=`<tr><td>${SI==='ALL'?'':r._it}</td><td><b>${r._by}</b></td><td style="font-size:10px;color:var(--tx2)">${r._co}</td><td>${r._pd}</td><td style="font-size:10px">${r._rg}</td><td class="r">${r.cr49f_price||r.cr49f_price_yen||'-'}</td><td class="r">${Math.round(r.cr49f_quantity||0)}</td><td class="r" style="color:var(--tx2)">${Math.round(r._al)}</td><td class="r ${r._rm<0?'neg':'pos'}"><b>${Math.round(r._rm)}</b></td><td style="font-size:10px;${ug?'color:var(--dg);font-weight:700':''};">${ls?(ls.getMonth()+1)+'/'+ls.getDate():'-'}</td></tr>`;});});
+  sh2+='</tbody></table>';$('sT').innerHTML=sh2;
+
+  if(BD.length)$('dB').innerHTML=`<b>購買サンプル:</b><pre style="font-size:10px;max-height:80px;overflow:auto">${JSON.stringify(BD[0],null,2)}</pre><b>販売サンプル:</b><pre style="font-size:10px;max-height:80px;overflow:auto">${JSON.stringify(SD[0],null,2)}</pre><b>BKGサンプル:</b><pre style="font-size:10px;max-height:80px;overflow:auto">${JSON.stringify(BK[0],null,2)}</pre>`;
+}
+
+function $(id){return document.getElementById(id);}
+function lg(m,t){const e=$('log');e.style.display='block';e.innerHTML+=`<div class="log-${t}">${m}</div>`;e.scrollTop=e.scrollHeight;}
+function sa(m,ld){const e=$('aA');if(!m){e.innerHTML='';return;}e.innerHTML=`<div class="al">${ld?'<span class="ld">'+m+'</span>':m}</div>`;}
+
+(async()=>{if(new URLSearchParams(location.search).get('code')){const ok=await hCb();if(ok){$('lC').classList.add('hid');await load();}}})();
+</script>
+</body>
+</html>
