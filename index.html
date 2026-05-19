@@ -96,6 +96,14 @@ table.mx td.pol-td{text-align:left;font-weight:600;font-size:11px;position:stick
 </style>
 </head>
 <body>
+<div id="loginGate" style="display:flex;position:fixed;inset:0;background:#0f1117;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+  <div style="font-size:40px;font-weight:800;letter-spacing:3px;color:#e2e8f0;">LEEN<span style="color:#4f8ef7">AI</span></div>
+  <div style="font-size:13px;color:#8892a4;font-weight:500;">B-01 Allocation</div>
+  <div style="width:48px;height:1px;background:#2e3350;margin:12px 0;"></div>
+  <div style="font-size:12px;color:#4a5568;text-align:center;line-height:1.8;">このツールを使用するには<br>Outlookアカウントでのログインが必要です</div>
+  <button id="gateLoginBtn" onclick="gateLogin()" style="margin-top:8px;background:#4f8ef7;color:#fff;border:none;padding:11px 32px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Segoe UI',sans-serif;display:inline-flex;align-items:center;gap:8px;">🔑 Outlookでログイン</button>
+  <div id="gateStatus" style="font-size:11px;color:#8892a4;height:18px;"></div>
+</div>
 <div class="hd">
   <div class="logo"><span>LEENAI</span></div>
   <span style="font-size:13px;font-weight:600">B-01 Allocation</span>
@@ -166,6 +174,18 @@ function b6(b){return btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\
 async function sh(s){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));}
 function rn(n=64){const a=new Uint8Array(n);crypto.getRandomValues(a);return b6(a).slice(0,n);}
 
+async function gateLogin() {
+  const btn = document.getElementById('gateLoginBtn');
+  btn.disabled = true;
+  document.getElementById('gateStatus').textContent = 'ログイン中...';
+  try {
+    await startLogin();
+  } catch(e) {
+    btn.disabled = false;
+    document.getElementById('gateStatus').textContent = e.message !== 'CANCELLED' ? 'エラー: ' + e.message : '';
+  }
+}
+
 async function startLogin(){
   lg('Login...','info');
   const v=rn(64),ch=b6(await sh(v)),st=rn(16);
@@ -191,7 +211,7 @@ async function hCb(){
       const nm=pl.name||pl.preferred_username||'';
       $('hU').textContent=nm;$('hU').style.display='block';
     }catch(e){}
-    lg('Login OK','ok');return true;
+    lg('Login OK','ok');const gate=document.getElementById('loginGate');if(gate)gate.style.display='none';return true;
   }catch(e){lg(e.message,'err');return false;}
 }
 
