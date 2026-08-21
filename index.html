@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LEENAI B-01 Allocation v2.2</title>
+<title>LEENAI B-01 Allocation v2.3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -68,7 +68,16 @@ body{font-family:'Segoe UI','Noto Sans JP',sans-serif;background:var(--bg);color
 .chip-sp{font-size:11px;color:var(--info);display:none;}
 
 /* ── 메인 ── */
-.main{max-width:1500px;margin:0 auto;padding:14px 16px;}
+.main{max-width:1700px;margin:0 auto;padding:14px 16px;}
+
+/* ── POL/POD 복수 필터 ── */
+.flt-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+.flt-label{font-size:10px;font-weight:700;color:var(--text3);min-width:28px;}
+.fchip{padding:3px 9px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);transition:all .12s;}
+.fchip:hover{border-color:var(--accent);color:var(--text);}
+.fchip.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+.fchip.all-chip{border-color:var(--text3);color:var(--text3);}
+.fchip.all-chip.on{background:var(--surface3);color:var(--text);border-color:var(--text2);}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;}
 .btn{padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;}
 .btn-ac{background:var(--accent);color:#fff;}
@@ -173,7 +182,7 @@ table.mx td.pol-td{text-align:left;font-weight:600;font-size:11px;position:stick
   <div class="splash-logo">LEEN<span>AI</span></div>
   <div class="splash-sys">B-01 Allocation</div>
   <div class="splash-title">全国配分最適化ツール</div>
-  <div class="splash-ver">v2.2</div>
+  <div class="splash-ver">v2.3</div>
   <div class="splash-div"></div>
   <div class="splash-desc">
     このツールを使用するには<br>
@@ -187,7 +196,7 @@ table.mx td.pol-td{text-align:left;font-weight:600;font-size:11px;position:stick
   <div class="hd">
     <div class="logo"><span>LEENAI</span></div>
     <span style="font-size:13px;font-weight:600">B-01 Allocation</span>
-    <div class="hd-ver">v2.2</div>
+    <div class="hd-ver">v2.3</div>
     <button class="btn-ref hid" id="refBtn" onclick="doRefresh()">Refresh</button>
     <span class="ts hid" id="tsSpan"></span>
     <span class="chip-dv" id="chipDv">● COMPASS</span>
@@ -205,6 +214,8 @@ table.mx td.pol-td{text-align:left;font-weight:600;font-size:11px;position:stick
     </div>
     <div class="sum-row" id="sR"></div>
     <div class="itabs" id="iT"></div>
+    <div class="flt-row" id="fPOL"></div>
+    <div class="flt-row" id="fPOD"></div>
     <div class="sp">
       <div>
         <div class="card">
@@ -268,6 +279,8 @@ let dvToken = null, grToken = null;
 let IT={}, BD=[], SD=[], BK=[], PM={}, SM={}, PK={}, BY={}, PD={}, DRAY_AVG={}, BKG_RAW=[], CARRIERS={};
 let FREIGHT = {};
 let SI = 'ALL';
+let SF_POL = new Set(); // 빈 Set = 전체 (필터 없음)
+let SF_POD = new Set(); // 빈 Set = 전체 (필터 없음)
 
 /* ══════════════════════════════════════
    유틸
@@ -549,7 +562,7 @@ async function loadAll(){
     lg('Purchase: '+BD.length,'ok');
 
     lg('Sales details...','info');
-    SD=await dgA("cr49f_sale_details?$filter=cr49f_closing eq false&$select=cr49f_sale_detailid,cr49f_quantity,cr49f_price,cr49f_price_yen,_cr49f_item_id_value,_cr49f_sale_contract_id_value");
+    SD=await dgA("cr49f_sale_details?$filter=cr49f_closing eq false&$select=cr49f_sale_detailid,cr49f_quantity,cr49f_price,cr49f_price_yen,cr49f_remark,_cr49f_item_id_value,_cr49f_sale_contract_id_value");
     lg('Sales: '+SD.length,'ok');
 
     lg('Booking details...','info');
@@ -611,7 +624,7 @@ async function loadAll(){
 
     lg('Buyer/POD...','info');
     const scG=[...new Set(SD.map(s=>s._cr49f_sale_contract_id_value).filter(Boolean))];
-    (await Promise.all(scG.map(g=>dg(`cr49f_sale_contracts(${g})?$select=cr49f_sale_contract_no,cr49f_latest_shipment,_cr49f_buyer_id_value,_cr49f_pod1_value`).catch(()=>null)))).forEach((r,i)=>{if(r)SM[scG[i]]={by:r._cr49f_buyer_id_value,pod:r._cr49f_pod1_value,ls:r.cr49f_latest_shipment,no:r.cr49f_sale_contract_no};});
+    (await Promise.all(scG.map(g=>dg(`cr49f_sale_contracts(${g})?$select=cr49f_sale_contract_no,cr49f_latest_shipment,cr49f_tolerance,_cr49f_buyer_id_value,_cr49f_pod1_value`).catch(()=>null)))).forEach((r,i)=>{if(r)SM[scG[i]]={by:r._cr49f_buyer_id_value,pod:r._cr49f_pod1_value,ls:r.cr49f_latest_shipment,no:r.cr49f_sale_contract_no,tol:r.cr49f_tolerance||''};});
     const byG=[...new Set(Object.values(SM).map(s=>s.by).filter(Boolean))];
     (await Promise.all(byG.map(g=>dg(`cr49f_buyers(${g})?$select=cr49f_buyer,crcf9_country`).catch(()=>null)))).forEach((r,i)=>{if(r)BY[byG[i]]={n:r.cr49f_buyer,c:r.crcf9_country};});
     const pdG=[...new Set(Object.values(SM).map(s=>s.pod).filter(Boolean))];
@@ -655,6 +668,8 @@ async function loadAll(){
       const by=BY[sc.by]||{},pd=PD[sc.pod]||{};
       s._by=by.n||'?';s._ct=by.c||'?';s._pd=pd.p||'?';s._rg=pd.r||'?';
       s._ls=sc.ls;s._co=sc.no||'';
+      s._tol=sc.tol||'';
+      s._rmk=s.cr49f_remark||'';
       s._al=aS[s.cr49f_sale_detailid]||0;
       s._rm=Math.round(((s.cr49f_quantity||0)-s._al)*100)/100;
     });
@@ -689,18 +704,63 @@ function render(){
     th+=`<div class="itab ${SI===i?'on':''}" onclick="sel('${i}')">${i}<span style="color:${d>=0?'var(--ok)':'var(--danger)'};font-size:9px;margin-left:2px">${d>=0?'+':''}${d}</span></div>`;
   });
   $('iT').innerHTML=th;
+  buildFilterChips();
   rT();
   renderMatrix();
 }
 
-function sel(i){SI=i;render();}
-
-function rT(){
+function buildFilterChips(){
+  // 현재 Item 필터 적용 후 실제 존재하는 POL/POD만 수집
   const bf=SI==='ALL'?BD:BD.filter(b=>b._it===SI);
   const sf=SI==='ALL'?SD:SD.filter(s=>s._it===SI);
+  const pols=[...new Set(bf.map(b=>b._pol).filter(p=>p&&p!=='-'))].sort();
+  const pods=[...new Set(sf.map(s=>s._pd).filter(p=>p&&p!=='?'&&p!=='国内転売'&&p!=='国内'))].sort();
+
+  // 존재하지 않는 필터 값은 제거
+  SF_POL=new Set([...SF_POL].filter(v=>pols.includes(v)));
+  SF_POD=new Set([...SF_POD].filter(v=>pods.includes(v)));
+
+  // POL 칩 생성
+  let ph=`<span class="flt-label">POL</span><div class="fchip all-chip ${SF_POL.size===0?'on':''}" onclick="selPOL('ALL')">全</div>`;
+  pols.forEach(p=>{ph+=`<div class="fchip ${SF_POL.has(p)?'on':''}" onclick="selPOL('${p}')">${p}</div>`;});
+  $('fPOL').innerHTML=ph;
+
+  // POD 칩 생성
+  let dh=`<span class="flt-label">POD</span><div class="fchip all-chip ${SF_POD.size===0?'on':''}" onclick="selPOD('ALL')">全</div>`;
+  pods.forEach(p=>{dh+=`<div class="fchip ${SF_POD.has(p)?'on':''}" onclick="selPOD('${encodeURI(p)}')" title="${p}">${p}</div>`;});
+  $('fPOD').innerHTML=dh;
+}
+
+function selPOL(v){
+  if(v==='ALL'){SF_POL.clear();}
+  else{SF_POL.has(v)?SF_POL.delete(v):SF_POL.add(v);}
+  buildFilterChips();rT();renderMatrix();
+}
+function selPOD(v){
+  const dv=decodeURI(v);
+  if(dv==='ALL'){SF_POD.clear();}
+  else{SF_POD.has(dv)?SF_POD.delete(dv):SF_POD.add(dv);}
+  buildFilterChips();rT();renderMatrix();
+}
+function sel(i){SI=i;SF_POL.clear();SF_POD.clear();render();}
+
+function rT(){
+  // Item 필터
+  let bf=SI==='ALL'?BD:BD.filter(b=>b._it===SI);
+  let sf=SI==='ALL'?SD:SD.filter(s=>s._it===SI);
+  // POL 필터 (구매잔)
+  if(SF_POL.size>0) bf=bf.filter(b=>SF_POL.has(b._pol));
+  // POD 필터 (판매잔)
+  if(SF_POD.size>0) sf=sf.filter(s=>SF_POD.has(s._pd));
 
   // 판매잔 (좌측) — POD 그루핑
-  let sh='<table class="dt"><thead><tr><th>POD</th><th>Buyer</th><th>Item</th><th>CO.</th><th>Country</th><th class="r">$/MT</th><th class="r">Contract</th><th class="r">Alloc</th><th class="r">Balance</th><th>L.Ship</th></tr></thead><tbody>';
+  // 컬럼 순서: POD | Buyer | Item | CO. | Country | $/MT | Contract | Alloc | Balance | Tolerance | Remark | L.Ship
+  let sh='<table class="dt"><thead><tr>'
+    +'<th>POD</th><th>Buyer</th><th>Item</th><th>CO.</th><th>Country</th>'
+    +'<th class="r">$/MT</th><th class="r">Contract</th><th class="r">Alloc</th>'
+    +'<th class="r">Balance</th><th style="min-width:52px">Tol.</th>'
+    +'<th style="min-width:80px">Remark</th><th>L.Ship</th>'
+    +'</tr></thead><tbody>';
   const byPod={};
   sf.forEach(s=>{const k=s._pd||'?';(byPod[k]=byPod[k]||[]).push(s);});
   Object.keys(byPod).sort((a,b)=>{
@@ -713,7 +773,15 @@ function rT(){
     const pa=pRows.reduce((a,r)=>a+r._al,0);
     const pr=pRows.reduce((a,r)=>a+r._rm,0);
     const country=pRows[0]?._rg||'';
-    sh+=`<tr class="pol-row"><td class="pol-name">${pod}</td><td></td><td></td><td></td><td style="font-size:10px">${country}</td><td></td><td class="r pol-num">${Math.round(pq)}</td><td class="r pol-num">${Math.round(pa)}</td><td class="r pol-num ${pr<0?'neg':'pos'}">${Math.round(pr)}</td><td></td></tr>`;
+    // 그루핑 행 (Tolerance/Remark는 그루핑 행에 표시 안 함)
+    sh+=`<tr class="pol-row">`
+      +`<td class="pol-name">${pod}</td><td></td><td></td><td></td>`
+      +`<td style="font-size:10px">${country}</td><td></td>`
+      +`<td class="r pol-num">${Math.round(pq)}</td>`
+      +`<td class="r pol-num">${Math.round(pa)}</td>`
+      +`<td class="r pol-num ${pr<0?'neg':'pos'}">${Math.round(pr)}</td>`
+      +`<td></td><td></td><td></td>`
+      +`</tr>`;
     pRows.sort((a,b)=>{
       const la=a._ls?new Date(a._ls):new Date('2099-01-01');
       const lb=b._ls?new Date(b._ls):new Date('2099-01-01');
@@ -723,7 +791,22 @@ function rT(){
       const dim=done?'opacity:.45;':'';
       const ls=r._ls?new Date(r._ls):null;
       const ug=!done&&ls&&(ls-new Date()<14*86400000);
-      sh+=`<tr style="${dim}"><td></td><td><b>${r._by}</b></td><td style="font-size:10px;color:var(--text2)">${r._it}</td><td style="font-size:10px;color:var(--text2)">${r._co}</td><td style="font-size:10px">${r._rg}</td><td class="r">${r.cr49f_price||r.cr49f_price_yen||'-'}</td><td class="r">${Math.round(r.cr49f_quantity||0)}</td><td class="r" style="color:var(--text2)">${Math.round(r._al)}</td><td class="r ${r._rm<0?'neg':r._rm>0?'pos':''}">${done?'<span style="color:var(--text3)">0</span>':'<b>'+Math.round(r._rm)+'</b>'}</td><td style="font-size:10px;${ug?'color:var(--danger);font-weight:700':''};">${ls?(ls.getMonth()+1)+'/'+ls.getDate():'-'}</td></tr>`;
+      const tolHtml=r._tol?`<span style="font-size:10px;color:var(--text2)">${r._tol}</span>`:'<span style="color:var(--text3)">-</span>';
+      const rmkHtml=r._rmk?`<span style="font-size:10px;color:var(--text2)">${r._rmk}</span>`:'';
+      sh+=`<tr style="${dim}">`
+        +`<td></td>`
+        +`<td><b>${r._by}</b></td>`
+        +`<td style="font-size:10px;color:var(--text2)">${r._it}</td>`
+        +`<td style="font-size:10px;color:var(--text2)">${r._co}</td>`
+        +`<td style="font-size:10px">${r._rg}</td>`
+        +`<td class="r">${r.cr49f_price||r.cr49f_price_yen||'-'}</td>`
+        +`<td class="r">${Math.round(r.cr49f_quantity||0)}</td>`
+        +`<td class="r" style="color:var(--text2)">${Math.round(r._al)}</td>`
+        +`<td class="r ${r._rm<0?'neg':r._rm>0?'pos':''}">${done?'<span style="color:var(--text3)">0</span>':'<b>'+Math.round(r._rm)+'</b>'}</td>`
+        +`<td>${tolHtml}</td>`
+        +`<td>${rmkHtml}</td>`
+        +`<td style="font-size:10px;${ug?'color:var(--danger);font-weight:700':''};">${ls?(ls.getMonth()+1)+'/'+ls.getDate():'-'}</td>`
+        +`</tr>`;
     });
   });
   sh+='</tbody></table>';
@@ -815,8 +898,8 @@ function buildMarginData(){
   });
   Object.values(podAgg).forEach(p=>{p.avgPrice=p.totalQty>0?p.totalRev/p.totalQty:0;});
 
-  const activePods=Object.keys(podAgg).filter(p=>podAgg[p].remain>0&&p!=='国内転売'&&p!=='国内').sort((a,b)=>podAgg[b].remain-podAgg[a].remain);
-  const activePols=Object.keys(polAgg).filter(p=>polAgg[p].remain>0).sort((a,b)=>polAgg[b].remain-polAgg[a].remain);
+  const activePods=Object.keys(podAgg).filter(p=>podAgg[p].remain>0&&p!=='国内転売'&&p!=='国内'&&(SF_POD.size===0||SF_POD.has(p))).sort((a,b)=>podAgg[b].remain-podAgg[a].remain);
+  const activePols=Object.keys(polAgg).filter(p=>polAgg[p].remain>0&&(SF_POL.size===0||SF_POL.has(p))).sort((a,b)=>polAgg[b].remain-polAgg[a].remain);
 
   const matrix={};
   activePols.forEach(pol=>{
